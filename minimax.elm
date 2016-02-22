@@ -43,11 +43,19 @@ getBestMove mt p b =
     Node move mts -> ((score p (List.map (\t -> getBestMove t p b) mts) b move), move)
 
 -- function to score a board (at the leaves of the MoveTree)
--- in the future, I should take into account whose turn is next?
---scoreBoard : Int -> Board -> Int
---scoreBoard p b = 
+-- Idea: in the future, I should take into account whose turn is next?
+scoreBoard : Board -> Int
+scoreBoard b = 
+  let
+    win = verifyWinner b
+    advantage = (countTiles npc b) - (countTiles human b)
+  in
+  case win of
+    Just (winner, _) -> if winner == npc then 1000 else if winner == human then -1000 else 0
+    Nothing -> advantage 
 
--- Is there a winner? 
+
+-- Is there a winner? Just (playerNum, magnitude of advantage)
 -- in the case of tie, we return Just (0, 0)
 verifyWinner : Board -> Maybe (Int, Int)
 verifyWinner b = 
@@ -73,18 +81,17 @@ countTiles p b =
 -- function to score a move
 --      have some heuristics 
 --      use heuristics to define value of leaf nodes?
--- score : player num, board, move
--- score : Int Int Board (Int, Int)
+-- score : player num, children, board, move
 score : Int -> List (Int, (Int,Int)) -> Board -> (Int, Int) -> Int
 score p children b move = 
   let
     getMax scorepairs = case scorepairs of 
       -- negative infinity
-      [] -> -1000
+      [] -> -10000
       (score, move) :: scorepairs' -> max score (getMax scorepairs')
     getMin scorepairs = case scorepairs of 
       -- positive infinity
-      [] -> 1000
+      [] -> 10000
       (score, move) :: scorepairs' -> min score (getMin scorepairs')
   in
   if p == npc 
