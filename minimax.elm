@@ -9,10 +9,11 @@ type alias Board = List Row
 
 getMoveFromSquare (button, T a (x,y)) = (x,y)
 npc = 2
+human = 1
 
 -- create tree of simulated moves
 -- ( a move is a pair of Ints representing coordinates)
--- int is 1 or 2 to represent player number
+-- p is 1 or 2 to represent player number
 -- second int is height of tree
 simMoveTrees : Int -> Int -> Board -> (Int, Int) -> MovesTree
 simMoveTrees p h board move = 
@@ -21,8 +22,7 @@ simMoveTrees p h board move =
         -- (-1, -1) means we're at the root of the tree
         (-1, -1) -> board
         _ -> executeMove move p board 
-      -- lm = legalMoves p board'
-      lm = legalMoves h board'
+      lm = legalMoves p board'
       opponent = case p of 
         1 -> 2
         _ -> 1
@@ -42,6 +42,34 @@ getBestMove mt p b =
     Node move [] -> (0, move)
     Node move mts -> ((score p (List.map (\t -> getBestMove t p b) mts) b move), move)
 
+-- function to score a board (at the leaves of the MoveTree)
+-- in the future, I should take into account whose turn is next?
+--scoreBoard : Int -> Board -> Int
+--scoreBoard p b = 
+
+-- Is there a winner? 
+-- in the case of tie, we return Just (0, 0)
+verifyWinner : Board -> Maybe (Int, Int)
+verifyWinner b = 
+  let
+  -- check if there are still moves
+  lm_npc = legalMoves npc b
+  lm_human = legalMoves human b
+  diff = (countTiles npc b) - (countTiles human b)
+  in
+    case lm_npc of 
+      [] -> case lm_human of
+        [] -> if diff == 0 then Just (0, 0)
+              else if diff > 0 then Just (npc, diff)
+              else Just (human, (-1*diff))
+        _ -> Nothing
+      _ -> Nothing
+
+countTiles : Int -> Board -> Int
+countTiles p b =
+  List.foldr (+) 0 
+    (List.map (\row -> List.length (List.filter (\(T a (x,y)) -> if a == p then True else False) row)) b)
+
 -- function to score a move
 --      have some heuristics 
 --      use heuristics to define value of leaf nodes?
@@ -52,11 +80,11 @@ score p children b move =
   let
     getMax scorepairs = case scorepairs of 
       -- negative infinity
-      [] -> -100
+      [] -> -1000
       (score, move) :: scorepairs' -> max score (getMax scorepairs')
     getMin scorepairs = case scorepairs of 
       -- positive infinity
-      [] -> 100
+      [] -> 1000
       (score, move) :: scorepairs' -> min score (getMin scorepairs')
   in
   if p == npc 
@@ -76,7 +104,7 @@ legalMoves p b = [((), T 1 (p,0)), ((), T 1 (p,1))]
 makeRow : Int -> Int -> Row
 makeRow rowNum counter = case counter of
   0 -> []
-  _ -> (T 0 (rowNum, boardSize-counter)) :: (makeRow rowNum (counter-1))
+  _ -> (T 1 (rowNum, boardSize-counter)) :: (makeRow rowNum (counter-1))
 
 makeBoard : Int -> Board
 makeBoard c = case c of
