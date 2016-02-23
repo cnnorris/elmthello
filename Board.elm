@@ -98,7 +98,8 @@ movements =    [(\(a,b) -> (a+1,b)),
 -- Returns 2 if there is a legal move for player p2 based on the tiles above 
 checkDirection : ((Int,Int) -> (Int,Int)) -> Int -> (Int, Int) -> Board -> Int
 checkDirection move player (x,y) board = 
-            if x < boardSize - 1 && y < boardSize - 1 then
+            if x < boardSize && y < boardSize
+               && x >= 0 && y >= 0 then
                 let (T c _) = spaceAt (x, y) board in
                 if c == player then
                     1
@@ -116,7 +117,8 @@ checkDirection move player (x,y) board =
 
 flipDirection : ((Int,Int) -> (Int,Int)) -> Int -> (Int, Int) -> Board -> (Int , Board)
 flipDirection move player (x,y) board =
-           if x < boardSize - 1 && y < boardSize - 1 then
+           if x < boardSize  && y < boardSize  &&
+              x >= 0 && y >= 0 then
                 let (T c _) = spaceAt (x, y) board in
                 if c == player then
                     (1, board)
@@ -148,10 +150,4 @@ spaceAt (x,y) board = drop x board |> head_ |> drop y |> head_
 
 
     
-                        
-
-
-
-
---aiMove : Board -> Maybe Tile
 
