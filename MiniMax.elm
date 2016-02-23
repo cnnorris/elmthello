@@ -7,13 +7,16 @@ type MovesTree = Node (Int, Int) (List MovesTree)
 getMoveFromTile (Board.T a (x,y)) = (x,y)
 npc = 2
 human = 1
+depth = 4
 
 
-getAiMove : Int-> Board -> Maybe (Int,Int)
-getAiMove t b = Nothing
-
-
-
+getAiMove : Int -> Board -> Maybe (Int,Int)
+getAiMove t b = 
+  let
+    simTree = simMoveTrees npc depth b (-1, -1)
+    bestMove = getBestMove simTree npc b
+  in
+    Just (snd bestMove)
 
 -- create tree of simulated moves
 -- ( a move is a pair of Ints representing coordinates)
@@ -26,17 +29,18 @@ simMoveTrees p h board move =
         -- (-1, -1) means we're at the root of the tree
         (-1, -1) -> board
         _ -> executeMove move p board 
-      lm = legalMoves p board'
-      opponent = case p of 
-        1 -> 2
-        _ -> 1
+      opponent = case move of 
+        (-1, -1) -> p
+        _ -> case p of 
+          1 -> 2
+          _ -> 1
     in
     case h of 
       0 -> Node move []
       _ -> 
-          case lm of
+          case (legalMoves opponent board') of
             [] -> Node move []
-            _ -> Node move (List.map (\x -> simMoveTrees opponent (h-1) board' x) lm)
+            _ -> Node move (List.map (\x -> simMoveTrees opponent (h-1) board' x) (legalMoves opponent board'))
 
 
 -- traverse tree of simulated moves to find best move
@@ -45,8 +49,10 @@ getBestMove : MovesTree -> Int -> Board -> (Int, (Int, Int))
 getBestMove mt p b = 
   case mt of
     -- at the leaf, we will have a different scoring algorithm; for now return 0
-    Node move [] -> (0, move)
-    Node move mts -> ((score p (List.map (\t -> getBestMove t p b) mts) b move), move)
+    Node move [] -> (scoreBoard b, move)
+    Node move mts -> case move of 
+      (-1, -1) -> (score p (List.map (\t -> getBestMove t p b) mts) b move)
+      _ -> ((fst (score p (List.map (\t -> getBestMove t p b) mts) b move)), move)
 
 -- function to score a board (at the leaves of the MoveTree)
 -- Idea: in the future, I should take into account whose turn is next?
@@ -88,17 +94,17 @@ countTiles p b =
 --      have some heuristics 
 --      use heuristics to define value of leaf nodes?
 -- score : player num, children, board, move
-score : Int -> List (Int, (Int,Int)) -> Board -> (Int, Int) -> Int
+score : Int -> List (Int, (Int,Int)) -> Board -> (Int, Int) -> (Int,(Int, Int))
 score p children b move = 
   let
     getMax scorepairs = case scorepairs of 
       -- negative infinity
-      [] -> -10000
-      (score, move) :: scorepairs' -> max score (getMax scorepairs')
+      [] -> (-10000, (-1, -1))
+      (score, move) :: scorepairs' -> if (max score (fst(getMax scorepairs'))) == score then (score,move) else (getMax scorepairs')
     getMin scorepairs = case scorepairs of 
       -- positive infinity
-      [] -> 10000
-      (score, move) :: scorepairs' -> min score (getMin scorepairs')
+      [] -> (10000, (-1,-1))
+      (score, move) :: scorepairs' -> if (min score (fst(getMin scorepairs'))) == score then (score,move) else (getMin scorepairs')
   in
   if p == npc 
     then getMax children 

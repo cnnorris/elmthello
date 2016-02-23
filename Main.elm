@@ -29,9 +29,9 @@ upstate (x,y) (turn, board) =   checkState <|
                                 if turn == 3 then (turn,board) else
                                 if member (x,y) (legalMoves turn board) then
                                                 let board' = executeMove (x,y) turn board in
-                                                case (aiMove turn board) of
+                                                case (aiMove turn board') of
                                                       Nothing -> (flipTurn turn, board')
-                                                      Just move -> (turn, executeMove move turn board)
+                                                      Just move -> (turn, executeMove move (flipTurn turn) board')
                                               else
                                                 (turn, board)
 
