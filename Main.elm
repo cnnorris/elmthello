@@ -39,16 +39,6 @@ upstate (x,y) (turn, board) =   checkState <|
 
                                     _ -> Debug.crash "Invalid turn"
 
-{-
-                                if turn == 3 then (turn,board) else
-                                if member (x,y) (legalMoves turn board) then
-                                                let board' = executeMove (x,y) turn board in
-                                                case (aiMove turn board') of
-                                                      Nothing -> (flipTurn turn, board')
-                                                      Just move -> (turn, executeMove move (flipTurn turn) board')
-                                              else
-                                                (turn, board)
--}
 
 checkState : State -> State
 checkState (turn, board) = case turn of
