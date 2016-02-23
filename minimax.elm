@@ -52,7 +52,7 @@ scoreBoard b =
   in
   case win of
     Just (winner, _) -> if winner == npc then 1000 else if winner == human then -1000 else 0
-    Nothing -> advantage 
+    Nothing -> advantage -- expand to include more heuristics here
 
 
 -- Is there a winner? Just (playerNum, magnitude of advantage)
