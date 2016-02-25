@@ -150,4 +150,3 @@ spaceAt (x,y) board = drop x board |> head_ |> drop y |> head_
 
 
     
-
