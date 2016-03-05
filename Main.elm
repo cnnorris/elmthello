@@ -8,6 +8,7 @@ import Graphics.Element as E exposing (image)
 import Graphics.Input exposing (customButton)
 import Color
 import Text as T
+import Time
 import List exposing (member, map, length)
 
 import MiniMax exposing (..)
@@ -26,14 +27,17 @@ flipTurn a = case a of
 
 upstate : (Int, Int) -> State -> State    -- Takes a clicked square and a state, updates if legal
 upstate (x,y) (turn, board) =   checkState <|
-                                if turn == 3 then (turn,board) else
-                                if member (x,y) (legalMoves turn board) then
-                                                let board' = executeMove (x,y) turn board in
-                                                case (aiMove turn board') of
-                                                      Nothing -> (flipTurn turn, board')
-                                                      Just move -> (turn, executeMove move (flipTurn turn) board')
-                                              else
-                                                (turn, board)
+                                case turn of
+                                    3 -> (turn,board)
+                                    2 -> case (aiMove turn board) of
+                                                      Nothing -> (1, board)
+                                                      Just move -> (1, executeMove move 2 board)
+                                    1 -> if member (x,y) (legalMoves turn board) then
+                                            (2, executeMove (x,y) turn board)
+                                         else
+                                            (turn,board)
+
+                                    _ -> Debug.crash "Invalid turn"
 
 
 checkState : State -> State
@@ -46,6 +50,7 @@ checkState (turn, board) = case turn of
                                         (flipTurn turn, board)
                                   else
                                         (3, board)
+
 
 
 buttonMailbox : Mailbox (Int,Int)
@@ -62,7 +67,7 @@ toButton x y (t,b) (T a loc)  = case a of
                                   (image x y "/player2.jpg")
                                   (image x y "/player2.jpg")
 
-                            _ -> if member loc (legalMoves t b) then
+                            _ -> if member loc (legalMoves t b) && t == 1 then
                                     customButton (Signal.message buttonMailbox.address loc)
                                     (image x y "/default.jpg")
                                     (image x y "/mouseover.jpg")
@@ -89,7 +94,7 @@ description h (turn, board) = E.flow E.down
 
 describeState : Int -> String
 describeState turn = case turn of
-                                 2 -> "   Blue moves"
+                                 2 -> "   AI is moving"
                                  1 -> "   Red moves"
                                  _ -> "   Game over!"
 
@@ -99,6 +104,7 @@ view (turn, board) (w,h) = E.beside (E.flow E.down (map (\a -> E.flow E.right <|
 
 
 stateOverTime : Signal State
-stateOverTime = Signal.foldp upstate initState buttonMailbox.signal
+stateOverTime = Signal.foldp upstate initState
+                        (Signal.merge buttonMailbox.signal (Time.delay Time.second buttonMailbox.signal))
 
 main = Signal.map2 view stateOverTime Window.dimensions
