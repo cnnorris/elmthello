@@ -13,6 +13,7 @@ cornerBias = 100
 goodEdgeBias = 50
 edgeSetUpBias = -50
 cornerSetUpBias = -100
+normalBias = 5
 
 getAiMove : Int -> Board -> Maybe (Int,Int)
 getAiMove t b = 
@@ -21,6 +22,27 @@ getAiMove t b =
     bestMove = getBestMove simTree npc b
   in
     Just (snd bestMove)
+
+coordsToTiles : List (Int ,Int) -> Board -> List Tile 
+coordsToTiles coords b = List.map (\x -> spaceAt x b) coords
+
+countTiles : Int -> Board -> List (Int, Int) -> Int
+countTiles p b cs =
+  List.length (List.filter (\(Board.T a (x,y)) -> if a == p then True else False) (coordsToTiles cs b)) 
+
+
+goodEdgeCoords : List (Int, Int) 
+goodEdgeCoords = [(0,2),(0,3),(0,4),(0,5),(7,2),(7,3),(7,4),(7,5),(2,0),(3,0),(4,0),(5,0),(2,7),(3,7),(4,7),(5,7)]
+
+cornerCoords : List (Int, Int)
+cornerCoords = [(0,0),(7,0),(0,7),(7,7)]
+
+cornerSetUpCoords : List (Int, Int)
+cornerSetUpCoords = [(0,1),(0,6),(1,0),(1,1),(1,6),(1,7),(6,0),(6,1),(7,1),(6,6),(6,7),(7,6)]
+
+edgeSetUpCoords : List (Int, Int)
+edgeSetUpCoords = [(1,2),(1,3),(1,4),(1,5),(6,2),(6,3),(6,4),(6,5),(2,1),(3,1),(4,1),(5,1),(2,6),(3,6),(4,6),(5,6)]
+
 
 -- create tree of simulated moves
 -- ( a move is a pair of Ints representing coordinates)
@@ -64,11 +86,16 @@ scoreBoard : Board -> Int
 scoreBoard b = 
   let
     win = verifyWinner b
+    cornerCountDiff = (countTiles npc b cornerCoords) - (countTiles human b cornerCoords)
+    cornerSetUpCountDiff = (countTiles npc b cornerSetUpCoords) - (countTiles human b cornerSetUpCoords)
+    goodEdgeCountDiff = (countTiles npc b goodEdgeCoords) - (countTiles human b goodEdgeCoords)
+    edgeSetUpCountDiff = (countTiles npc b edgeSetUpCoords) - (countTiles human b edgeSetUpCoords)
     advantage = (countBoardTiles npc b) - (countBoardTiles human b)
   in
   case win of
     Just (winner, _) -> if winner == npc then 1000 else if winner == human then -1000 else 0
-    Nothing -> advantage -- expand to include more heuristics here
+    Nothing -> let otherDiff = (advantage-cornerCountDiff-cornerSetUpCountDiff-goodEdgeCountDiff-edgeSetUpCountDiff) in 
+      cornerBias*cornerCountDiff+cornerSetUpBias*cornerSetUpCountDiff+goodEdgeCountDiff*goodEdgeBias+edgeSetUpCountDiff*edgeSetUpBias+normalBias*otherDiff
 
 
 -- Is there a winner? Just (playerNum, magnitude of advantage)
@@ -88,25 +115,6 @@ verifyWinner b =
               else Just (human, (-1*diff))
         _ -> Nothing
       _ -> Nothing
-
-countTiles : Int -> List Tile -> Int
-countTiles p ts =
-  List.length (List.filter (\(Board.T a (x,y)) -> if a == p then True else False) ts) 
-
-coordsToTiles : List (Int ,Int) -> Board -> List Tile 
-coordsToTiles coords b = List.map (\x -> spaceAt x b) coords
-
-goodEdgeCoords : List (Int, Int) 
-goodEdgeCoords = [(0,2),(0,3),(0,4),(0,5),(7,2),(7,3),(7,4),(7,5),(2,0),(3,0),(4,0),(5,0),(2,7),(3,7),(4,7),(5,7)]
-
-cornerCoords : List (Int, Int)
-cornerCoords = [(0,0),(7,0),(0,7),(7,7)]
-
-cornerSetUpCoords : List (Int, Int)
-cornerSetUpCoords = [(0,1),(0,6),(1,0),(1,1),(1,6),(1,7),(6,0),(6,1),(7,1),(6,6),(6,7),(7,6)]
-
-edgeSetUpCoords : List (Int, Int)
-edgeSetUpCoords = [(1,2),(1,3),(1,4),(1,5),(6,2),(6,3),(6,4),(6,5),(2,1),(3,1),(4,1),(5,1),(2,6),(3,6),(4,6),(5,6)]
 
 countBoardTiles : Int -> Board -> Int
 countBoardTiles p b =
