@@ -66,7 +66,27 @@ simMoveTrees p h board move =
       _ -> 
           case (legalMoves opponent board') of
             [] -> Node move []
-            _ -> Node move (List.map (\x -> simMoveTrees opponent (h-1) board' x) (legalMoves opponent board'))
+            nextMoves -> 
+              Node move (List.map (\x -> simMoveTrees opponent (h-1) board' x) (prune nextMoves))
+
+-- add pruning based on heuristics.
+prune : List (Int, Int) -> List (Int, Int)
+prune possMoves =
+  let
+    cornerPrune pm = case pm of 
+      [] -> []
+      x :: xs -> if (List.member x cornerCoords) then [x] else (cornerPrune xs)
+    edgePrune pm = case pm of 
+      [] -> []
+      x :: xs -> if (List.member x goodEdgeCoords) then x :: (edgePrune xs) else (edgePrune xs)
+    -- I don't use the cornerSetUpPrune as of now
+    cornerSetUpPrune pm = case pm of 
+      [] -> []
+      x :: xs -> if (List.member x cornerSetUpCoords) then (cornerSetUpPrune xs) else x::(cornerSetUpPrune xs)
+  in
+    if List.length (cornerPrune possMoves) == 1 then (cornerPrune possMoves)
+    else if (List.length (edgePrune possMoves)) > 0 then (edgePrune possMoves)
+    else possMoves
 
 
 -- traverse tree of simulated moves to find best move
