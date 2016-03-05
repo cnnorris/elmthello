@@ -76,6 +76,7 @@ prune possMoves =
     cornerPrune pm = case pm of 
       [] -> []
       x :: xs -> if (List.member x cornerCoords) then [x] else (cornerPrune xs)
+    -- I don't use the edgePrune as of now
     edgePrune pm = case pm of 
       [] -> []
       x :: xs -> if (List.member x goodEdgeCoords) then x :: (edgePrune xs) else (edgePrune xs)
@@ -85,7 +86,7 @@ prune possMoves =
       x :: xs -> if (List.member x cornerSetUpCoords) then (cornerSetUpPrune xs) else x::(cornerSetUpPrune xs)
   in
     if List.length (cornerPrune possMoves) == 1 then (cornerPrune possMoves)
-    else if (List.length (edgePrune possMoves)) > 0 then (edgePrune possMoves)
+    -- else if (List.length (edgePrune possMoves)) > 0 then (edgePrune possMoves)
     else possMoves
 
 
