@@ -84,10 +84,10 @@ description  : Int -> State -> E.Element
 description h (turn, board) = E.flow E.down
                 [(E.container 200 (h//8) E.middle
                         <| E.width 200 <| E.justified <| T.fromString
-                        <| "   Red: " ++ (toString (countTiles 1 board))),
+                        <| "   Red: " ++ (toString (countBoardTiles 1 board))),
                  (E.container 200 (h//8) E.middle
                         <| E.width 200 <| E.justified <| T.fromString
-                        <|"   Blue: " ++ (toString (countTiles 2 board))),
+                        <|"   Blue: " ++ (toString (countBoardTiles 2 board))),
                 (E.container 200 (h//2) E.middle
                         <| E.width 200 <| E.justified <| T.fromString (
                         describeState turn))]

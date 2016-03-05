@@ -1,6 +1,6 @@
 module MiniMax where 
 
-import Board exposing (boardSize, Tile, Row, Board, legalMoves, initBoard, executeMove)
+import Board exposing (boardSize, Tile, Row, Board, legalMoves, initBoard, executeMove, spaceAt)
 
 type MovesTree = Node (Int, Int) (List MovesTree)
 
@@ -9,6 +9,10 @@ npc = 2
 human = 1
 depth = 4
 
+cornerBias = 100
+goodEdgeBias = 50
+edgeSetUpBias = -50
+cornerSetUpBias = -100
 
 getAiMove : Int -> Board -> Maybe (Int,Int)
 getAiMove t b = 
@@ -60,7 +64,7 @@ scoreBoard : Board -> Int
 scoreBoard b = 
   let
     win = verifyWinner b
-    advantage = (countTiles npc b) - (countTiles human b)
+    advantage = (countBoardTiles npc b) - (countBoardTiles human b)
   in
   case win of
     Just (winner, _) -> if winner == npc then 1000 else if winner == human then -1000 else 0
@@ -75,7 +79,7 @@ verifyWinner b =
   -- check if there are still moves
   lm_npc = legalMoves npc b
   lm_human = legalMoves human b
-  diff = (countTiles npc b) - (countTiles human b)
+  diff = (countBoardTiles npc b) - (countBoardTiles human b)
   in
     case lm_npc of 
       [] -> case lm_human of
@@ -85,8 +89,27 @@ verifyWinner b =
         _ -> Nothing
       _ -> Nothing
 
-countTiles : Int -> Board -> Int
-countTiles p b =
+countTiles : Int -> List Tile -> Int
+countTiles p ts =
+  List.length (List.filter (\(Board.T a (x,y)) -> if a == p then True else False) ts) 
+
+coordsToTiles : List (Int ,Int) -> Board -> List Tile 
+coordsToTiles coords b = List.map (\x -> spaceAt x b) coords
+
+goodEdgeCoords : List (Int, Int) 
+goodEdgeCoords = [(0,2),(0,3),(0,4),(0,5),(7,2),(7,3),(7,4),(7,5),(2,0),(3,0),(4,0),(5,0),(2,7),(3,7),(4,7),(5,7)]
+
+cornerCoords : List (Int, Int)
+cornerCoords = [(0,0),(7,0),(0,7),(7,7)]
+
+cornerSetUpCoords : List (Int, Int)
+cornerSetUpCoords = [(0,1),(0,6),(1,0),(1,1),(1,6),(1,7),(6,0),(6,1),(7,1),(6,6),(6,7),(7,6)]
+
+edgeSetUpCoords : List (Int, Int)
+edgeSetUpCoords = [(1,2),(1,3),(1,4),(1,5),(6,2),(6,3),(6,4),(6,5),(2,1),(3,1),(4,1),(5,1),(2,6),(3,6),(4,6),(5,6)]
+
+countBoardTiles : Int -> Board -> Int
+countBoardTiles p b =
   List.foldr (+) 0 
     (List.map (\row -> List.length (List.filter (\(Board.T a (x,y)) -> if a == p then True else False) row)) b)
 
@@ -105,10 +128,19 @@ score p children b move =
       -- positive infinity
       [] -> (10000, (-1,-1))
       (score, move) :: scorepairs' -> if (min score (fst(getMin scorepairs'))) == score then (score,move) else (getMin scorepairs')
-  in
-  if p == npc 
-    then getMax children 
-    else getMin children
-
+  in let 
+    (optScore, optMove) = if p == npc then getMax children else getMin children
+    whoseTurn = if p == npc then 1 else -1
+    in
+      if List.member optMove cornerCoords then
+        (optScore + whoseTurn*cornerBias,optMove)
+      else if List.member optMove cornerSetUpCoords then
+        (optScore + whoseTurn*cornerSetUpBias,optMove)
+      else if List.member optMove edgeSetUpCoords then
+        (optScore + whoseTurn*edgeSetUpBias,optMove)
+      else if List.member optMove goodEdgeCoords then
+        (optScore + whoseTurn*goodEdgeBias, optMove)
+      else
+        (optScore, optMove)
 
 
