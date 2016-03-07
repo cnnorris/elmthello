@@ -34,17 +34,16 @@ countTiles p b cs =
 
 
 goodEdgeCoords : List (Int, Int) 
-goodEdgeCoords = [(0,2),(0,3),(0,4),(0,5),(7,2),(7,3),(7,4),(7,5),(2,0),(3,0),(4,0),(5,0),(2,7),(3,7),(4,7),(5,7)]
+goodEdgeCoords = [(0,1),(0,6),(1,0),(1,7),(6,0),(7,1),(7,6),(6,7),(0,2),(0,3),(0,4),(0,5),(7,2),(7,3),(7,4),(7,5),(2,0),(3,0),(4,0),(5,0),(2,7),(3,7),(4,7),(5,7)]
 
 cornerCoords : List (Int, Int)
 cornerCoords = [(0,0),(7,0),(0,7),(7,7)]
 
 cornerSetUpCoords : List (Int, Int)
-cornerSetUpCoords = [(0,1),(0,6),(1,0),(1,1),(1,6),(1,7),(6,0),(6,1),(7,1),(6,6),(6,7),(7,6)]
+cornerSetUpCoords = [(1,1),(1,6),(6,1),(6,6)]
 
 edgeSetUpCoords : List (Int, Int)
 edgeSetUpCoords = [(1,2),(1,3),(1,4),(1,5),(6,2),(6,3),(6,4),(6,5),(2,1),(3,1),(4,1),(5,1),(2,6),(3,6),(4,6),(5,6)]
-
 
 -- create tree of simulated moves
 -- ( a move is a pair of Ints representing coordinates)
@@ -112,6 +111,7 @@ isStable (x,y) currPlayer b =
       (B t, B s) -> t && s
     
 
+excludedCoords = [(1,1),(1,6),(6,1),(6,6)]
 -- add pruning - definitely take corners if possible;
 -- second priority is to stable edge placements.
 prune : List (Int, Int) -> Board -> Int -> List (Int, Int)
@@ -128,10 +128,10 @@ prune possMoves b p =
           then x :: (edgePrune xs board) 
           else (edgePrune xs board)
         else (edgePrune xs board)
-    -- I don't use the cornerSetUpPrune as of now
-    cornerSetUpPrune pm = case pm of 
+    -- I don't use the cornerSetUpPrune as of nsow
+    excludePrune pm = case pm of 
       [] -> []
-      x :: xs -> if (List.member x cornerSetUpCoords) then (cornerSetUpPrune xs) else x::(cornerSetUpPrune xs)
+      x :: xs -> if (List.member x excludedCoords) then (excludePrune xs) else x::(excludePrune xs)
   in
     if List.length (cornerPrune possMoves) == 1 then (cornerPrune possMoves)
     else 
@@ -139,7 +139,8 @@ prune possMoves b p =
        edgePruned = edgePrune possMoves b
       in 
       if (List.length edgePruned) > 0 then edgePruned
-      else possMoves
+      else let setUpPruned = excludePrune possMoves in
+        if List.length setUpPruned > 0 then setUpPruned else possMoves
 
 
 -- traverse tree of simulated moves to find best move
