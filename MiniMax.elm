@@ -26,6 +26,8 @@ getAiMove t b =
 coordsToTiles : List (Int ,Int) -> Board -> List Tile 
 coordsToTiles coords b = List.map (\x -> spaceAt x b) coords
 
+getPlayer (Board.T a (x,y)) = a
+
 countTiles : Int -> Board -> List (Int, Int) -> Int
 countTiles p b cs =
   List.length (List.filter (\(Board.T a (x,y)) -> if a == p then True else False) (coordsToTiles cs b)) 
@@ -67,27 +69,71 @@ simMoveTrees p h board move =
           case (legalMoves opponent board') of
             [] -> Node move []
             nextMoves -> 
-              Node move (List.map (\x -> simMoveTrees opponent (h-1) board' x) (prune nextMoves))
+              Node move (List.map (\x -> simMoveTrees opponent (h-1) board' x) (prune nextMoves board' p))
+
+type SpecialBool = Corner | B Bool
+
+isStable : (Int, Int) -> Int -> Board -> Bool
+isStable (x,y) currPlayer b =
+  let
+    checkRight (x,y) = 
+      if (x+1) > 7 then Corner
+      else let p = getPlayer <| spaceAt (x+1,y) b in
+        if p == currPlayer then (checkRight (x+1,y)) else if p == 0 then B True else B False
+    checkLeft (x,y) = 
+      if (x-1) < 0 then Corner
+      else let p = getPlayer <| spaceAt (x-1,y) b in
+        if p == currPlayer then (checkLeft (x-1,y)) else if p == 0 then B True else B False
+
+    checkDown (x,y) =
+      if (y+1) > 7 then Corner
+      else let p = getPlayer <| spaceAt (x,y+1) b in
+        if p == currPlayer then (checkDown (x,y+1)) else if p == 0 then B True else B False
+    checkUp (x,y) =
+      if (y-1) < 0 then Corner
+      else let p = getPlayer <| spaceAt (x,y-1) b in
+        if p == currPlayer then (checkUp (x,y-1)) else if p == 0 then B True else B False
+  in
+  if y == 0 || y == 7 then 
+    case ((checkRight (x,y)), (checkLeft (x,y))) of 
+      (Corner,_) -> True
+      (_,Corner) -> True
+      (B t, B s) -> t && s
+  else 
+    case ((checkDown (x,y)), (checkUp (x,y))) of 
+      (Corner,_) -> True
+      (_,Corner) -> True
+      (B t, B s) -> t && s
+    
 
 -- add pruning based on heuristics.
-prune : List (Int, Int) -> List (Int, Int)
-prune possMoves =
+prune : List (Int, Int) -> Board -> Int -> List (Int, Int)
+prune possMoves b p =
   let
     cornerPrune pm = case pm of 
       [] -> []
       x :: xs -> if (List.member x cornerCoords) then [x] else (cornerPrune xs)
     -- I don't use the edgePrune as of now
-    edgePrune pm = case pm of 
+    edgePrune pm board= case pm of 
       [] -> []
-      x :: xs -> if (List.member x goodEdgeCoords) then x :: (edgePrune xs) else (edgePrune xs)
+      x :: xs -> if (List.member x goodEdgeCoords) 
+        then 
+          if (isStable x p (executeMove x p b))
+          then x :: (edgePrune xs board) 
+          else (edgePrune xs board)
+        else (edgePrune xs board)
     -- I don't use the cornerSetUpPrune as of now
     cornerSetUpPrune pm = case pm of 
       [] -> []
       x :: xs -> if (List.member x cornerSetUpCoords) then (cornerSetUpPrune xs) else x::(cornerSetUpPrune xs)
   in
     if List.length (cornerPrune possMoves) == 1 then (cornerPrune possMoves)
-    -- else if (List.length (edgePrune possMoves)) > 0 then (edgePrune possMoves)
-    else possMoves
+    else 
+      let
+       edgePruned = edgePrune possMoves b
+      in 
+      if (List.length edgePruned) > 0 then edgePruned
+      else possMoves
 
 
 -- traverse tree of simulated moves to find best move
