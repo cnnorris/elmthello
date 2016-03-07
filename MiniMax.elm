@@ -7,7 +7,7 @@ type MovesTree = Node (Int, Int) (List MovesTree)
 getMoveFromTile (Board.T a (x,y)) = (x,y)
 npc = 2
 human = 1
-depth = 4
+depth = 5
 
 cornerBias = 100
 goodEdgeBias = 50
@@ -103,12 +103,12 @@ isStable (x,y) currPlayer b =
     case ((checkRight (x,y)), (checkLeft (x,y))) of 
       (Corner,_) -> True
       (_,Corner) -> True
-      (B t, B s) -> t && s
+      (B t, B s) -> (t && s) || ((not t) && (not s))
   else 
     case ((checkDown (x,y)), (checkUp (x,y))) of 
       (Corner,_) -> True
       (_,Corner) -> True
-      (B t, B s) -> t && s
+      (B t, B s) -> (t && s) ||((not t) && (not s))
     
 
 excludedCoords = [(1,1),(1,6),(6,1),(6,6)]
