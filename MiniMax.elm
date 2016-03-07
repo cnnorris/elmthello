@@ -121,13 +121,13 @@ prune possMoves b p =
       [] -> []
       x :: xs -> if (List.member x cornerCoords) then [x] else (cornerPrune xs)
     edgePrune pm board= case pm of 
-      [] -> []
+      [] -> ([],[])
       x :: xs -> if (List.member x goodEdgeCoords) 
         then 
           if (isStable x p (executeMove x p b))
-          then x :: (edgePrune xs board) 
-          else (edgePrune xs board)
-        else (edgePrune xs board)
+          then let moveLists = (edgePrune xs board) in ((x :: (fst moveLists)),(snd moveLists))
+          else let moveLists = (edgePrune xs board) in moveLists
+        else let moveLists = (edgePrune xs board) in (fst moveLists, x :: (snd moveLists))
     -- I don't use the cornerSetUpPrune as of nsow
     excludePrune pm = case pm of 
       [] -> []
@@ -136,11 +136,11 @@ prune possMoves b p =
     if List.length (cornerPrune possMoves) == 1 then (cornerPrune possMoves)
     else 
       let
-       edgePruned = edgePrune possMoves b
+       (goodEdges, otherPlacements) = edgePrune possMoves b
       in 
-      if (List.length edgePruned) > 0 then edgePruned
-      else let setUpPruned = excludePrune possMoves in
-        if List.length setUpPruned > 0 then setUpPruned else possMoves
+      if (List.length goodEdges) > 0 then goodEdges
+      else if (List.length (excludePrune otherPlacements)) > 0 then (excludePrune otherPlacements)
+      else possMoves
 
 
 -- traverse tree of simulated moves to find best move
