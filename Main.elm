@@ -101,6 +101,8 @@ describeState turn = case turn of
 
 view :  State -> (Int, Int) -> E.Element
 view (turn, board) (w,h) = E.beside (E.flow E.down (map (\a -> E.flow E.right <| map (toButton ((min h w)//8) ((min h w)//8) (turn,board)) a) board)) (description h (turn,board))
+-- If AI moves twice in a row, second turn doesn't get triggered
+
 
 
 stateOverTime : Signal State
