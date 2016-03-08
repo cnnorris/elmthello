@@ -15,7 +15,7 @@ import MiniMax exposing (..)
 
 type alias State = (Int, Board) -- Int is player # whose turn it is
 
-
+type Sig = Loc (Int,Int) | Check Float
 
 initState = (1, initBoard)
 aiMove = getAiMove
@@ -25,18 +25,20 @@ flipTurn a = case a of
                     2 -> 1
                     _ -> Debug.crash "No turn"
 
-upstate : (Int, Int) -> State -> State    -- Takes a clicked square and a state, updates if legal
-upstate (x,y) (turn, board) =   checkState <|
+upstate : Sig -> State -> State    -- Takes a clicked square and a state, updates if legal
+upstate s (turn, board) =   checkState <|
                                 case turn of
                                     3 -> (turn,board)
                                     2 -> case (aiMove turn board) of
                                                       Nothing -> (1, board)
                                                       Just move -> (1, executeMove move 2 board)
-                                    1 -> if member (x,y) (legalMoves turn board) then
-                                            (2, executeMove (x,y) turn board)
-                                         else
-                                            (turn,board)
-
+                                    1 -> case s of
+                                            Loc (x,y) ->
+                                                 if member (x,y) (legalMoves turn board) then
+                                                    (2, executeMove (x,y) turn board)
+                                                 else
+                                                    (turn,board)
+                                            _    -> (turn,board)
                                     _ -> Debug.crash "Invalid turn"
 
 
@@ -44,8 +46,10 @@ checkState : State -> State
 checkState (turn, board) = case turn of
                              3 -> (turn,board)
                              _ -> if length (legalMoves turn board) > 0 then
+                                    if turn == 2 then let x = Signal.send buttonMailbox.address (4,4) in
+                                            (turn,board)
+                                    else
                                         (turn,board)
-
                                   else if length (legalMoves (flipTurn turn) board) > 0 then
                                         (flipTurn turn, board)
                                   else
@@ -107,6 +111,6 @@ view (turn, board) (w,h) = E.beside (E.flow E.down (map (\a -> E.flow E.right <|
 
 stateOverTime : Signal State
 stateOverTime = Signal.foldp upstate initState
-                        (Signal.merge buttonMailbox.signal (Time.delay Time.second buttonMailbox.signal))
+                        (Signal.merge (Signal.map Loc buttonMailbox.signal) (Signal.map Check <| Time.every (3 * Time.second)))
 
 main = Signal.map2 view stateOverTime Window.dimensions
