@@ -147,12 +147,15 @@ prune possMoves b p =
 -- sim tree, player num, current board
 getBestMove : MovesTree -> Int -> Board -> (Int, (Int, Int))
 getBestMove mt p b = 
+  let
+    otherP = if p == npc then human else npc
+  in
   case mt of
     -- at the leaf, we will have a different scoring algorithm; for now return 0
     Node move [] -> (scoreBoard b, move)
     Node move mts -> case move of 
-      (-1, -1) -> (score p (List.map (\t -> getBestMove t p b) mts) b move)
-      _ -> ((fst (score p (List.map (\t -> getBestMove t p b) mts) b move)), move)
+      (-1, -1) -> (score p (List.map (\t -> getBestMove t otherP b) mts) b move)
+      _ -> ((fst (score p (List.map (\t -> getBestMove t otherP b) mts) b move)), move)
 
 -- function to score a board (at the leaves of the MoveTree)
 -- we calculate advantage by weighting the value of the tiles that we have vs the tiles 
@@ -223,7 +226,7 @@ score p children b move =
       else if List.member optMove edgeSetUpCoords then
         (optScore + whoseTurn*edgeSetUpBias,optMove)
       else if List.member optMove goodEdgeCoords then
-        (optScore + whoseTurn*goodEdgeBias, optMove)
+        (optScore + whoseTurn*normalBias, optMove) -- normalBias instead of goodEdgeBias
       else
         (optScore, optMove)
 
