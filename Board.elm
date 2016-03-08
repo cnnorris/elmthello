@@ -18,7 +18,6 @@ import Signal exposing (Mailbox, mailbox)
 import List exposing (drop, take, foldr, map, head, length, filter)
 
 
-
 boardSize = 8
 
 type Tile = T Int (Int, Int)  -- Player/color, (row,col) 
