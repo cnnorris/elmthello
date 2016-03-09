@@ -5,7 +5,7 @@ import Board exposing (..)
 import Signal exposing (Mailbox, mailbox)
 import Window
 import Graphics.Element as E exposing (image)
-import Graphics.Input exposing (customButton)
+import Graphics.Input exposing (customButton, button, checkbox)
 import Color
 import Text as T
 import Time
@@ -13,11 +13,11 @@ import List exposing (member, map, length)
 
 import MiniMax exposing (..)
 
-type alias State = (Int, Board) -- Int is player # whose turn it is
+type alias State = (Int, Board, Bool) -- Int is player # whose turn it is, Bool is whether or not AI is on
 
-type Sig = Loc (Int,Int) | Check Float
+type Sig = Loc (Int,Int) | Check Float | AI
 
-initState = (1, initBoard)
+initState = (1, initBoard, False)
 aiMove = getAiMove
 
 flipTurn a = case a of
@@ -26,42 +26,50 @@ flipTurn a = case a of
                     _ -> Debug.crash "No turn"
 
 upstate : Sig -> State -> State    -- Takes a clicked square and a state, updates if legal
-upstate s (turn, board) =   checkState <|
-                                case turn of
-                                    3 -> (turn,board)
-                                    2 -> case (aiMove turn board) of
-                                                      Nothing -> (1, board)
-                                                      Just move -> (1, executeMove move 2 board)
-                                    1 -> case s of
-                                            Loc (x,y) ->
-                                                 if member (x,y) (legalMoves turn board) then
-                                                    (2, executeMove (x,y) turn board)
-                                                 else
-                                                    (turn,board)
-                                            _    -> (turn,board)
-                                    _ -> Debug.crash "Invalid turn"
+upstate s (turn, board, ai) =  if s == Loc (-1,-1) then initState
+                               else if s == AI then (turn, board, not ai)
+                               else checkState <|
+                                    case turn of
+                                        3 -> (turn, board, ai)
+                                        2 -> if ai then
+                                                 case (aiMove turn board) of
+                                                          Nothing -> (1, board, ai)
+                                                          Just move -> (1, executeMove move 2 board, ai)
+                                             else
+                                                evaluateMove s (turn, board, ai)
+                                        1 -> evaluateMove s (turn, board, ai)
+                                        _ -> Debug.crash "Invalid turn"
 
+evaluateMove : Sig -> State -> State
+evaluateMove s (turn, board, ai) =
+    case s of
+        Loc (x,y) ->
+             if member (x,y) (legalMoves turn board) then
+                (flipTurn turn, executeMove (x,y) turn board, ai)
+             else
+                (turn,board, ai)
+        _    -> (turn,board, ai)
 
 checkState : State -> State
-checkState (turn, board) = case turn of
-                             3 -> (turn,board)
+checkState (turn, board, ai) = case turn of
+                             3 -> (turn, board, ai)
                              _ -> if length (legalMoves turn board) > 0 then
-                                    if turn == 2 then let x = Signal.send buttonMailbox.address (4,4) in
-                                            (turn,board)
-                                    else
-                                        (turn,board)
+                                        (turn,board, ai)
                                   else if length (legalMoves (flipTurn turn) board) > 0 then
-                                        (flipTurn turn, board)
+                                        (flipTurn turn, board, ai)
                                   else
-                                        (3, board)
+                                        (3, board, ai)
 
 
 
 buttonMailbox : Mailbox (Int,Int)
 buttonMailbox = mailbox (0,0)
 
+aiMailbox : Mailbox Bool
+aiMailbox = mailbox True
+
 toButton : Int -> Int -> State-> Tile ->  E.Element
-toButton x y (t,b) (T a loc)  = case a of
+toButton x y (t,b, ai) (T a loc)  = case a of
                             1 -> customButton (Signal.message buttonMailbox.address loc)
                                   (image x y "/player1.jpg")
                                   (image x y "/player1.jpg")
@@ -71,7 +79,7 @@ toButton x y (t,b) (T a loc)  = case a of
                                   (image x y "/player2.jpg")
                                   (image x y "/player2.jpg")
 
-                            _ -> if member loc (legalMoves t b) && t == 1 then
+                            _ -> if member loc (legalMoves t b) && (t == 1  || not ai) then
                                     customButton (Signal.message buttonMailbox.address loc)
                                     (image x y "/default.jpg")
                                     (image x y "/mouseover.jpg")
@@ -85,32 +93,70 @@ toButton x y (t,b) (T a loc)  = case a of
 
 
 description  : Int -> State -> E.Element
-description h (turn, board) = E.flow E.down
+description h (turn, board, ai) = E.flow E.down
                 [(E.container 200 (h//8) E.middle
                         <| E.width 200 <| E.justified <| T.fromString
                         <| "   Red: " ++ (toString (countBoardTiles 1 board))),
                  (E.container 200 (h//8) E.middle
                         <| E.width 200 <| E.justified <| T.fromString
                         <|"   Blue: " ++ (toString (countBoardTiles 2 board))),
-                (E.container 200 (h//2) E.middle
-                        <| E.width 200 <| E.justified <| T.fromString (
-                        describeState turn))]
+                 (E.container 200 (h//2) E.middle
+                        <| E.width 200 <| describeState (turn, board, ai) h),
+                 (E.flow E.right
+                    [E.container 60 60 E.middle (checkbox (Signal.message aiMailbox.address) ai),
+                     E.container 80 60 E.middle
+                                    <| E.width 80 <| E.justified <| T.fromString " Toggle AI",
+                     E.container 200 60 E.middle
+                                    <| E.width 200 <| E.justified <| T.fromString <|
+                                        if ai then "(Currently ON)"
+                                        else "(Currently OFF)"])
 
-describeState : Int -> String
-describeState turn = case turn of
-                                 2 -> "   AI is moving"
-                                 1 -> "   Red moves"
-                                 _ -> "   Game over!"
+                 ]
+
+
+
+
+
+describeState :  State -> Int -> E.Element
+describeState (turn, _ , ai) h =  E.flow E.right
+                                            [ E.spacer 10 100,
+                                             case turn of
+                                                1 -> (image 180 120 "/redTurn.jpg")
+
+                                                2 -> if ai then
+                                                        image 180 120 "/aiTurn.jpg"
+                                                     else
+                                                        image 180 120 "/blueTurn.jpg"
+
+                                                _ -> customButton (Signal.message buttonMailbox.address (-1,-1))
+                                                    (image 180 120 "/doneDefault.jpg")
+                                                    (image 180 120 "/doneOver.jpg")
+                                                    (image 180 120 "/doneClick.jpg")]
 
 
 view :  State -> (Int, Int) -> E.Element
-view (turn, board) (w,h) = E.beside (E.flow E.down (map (\a -> E.flow E.right <| map (toButton ((min h w)//8) ((min h w)//8) (turn,board)) a) board)) (description h (turn,board))
--- If AI moves twice in a row, second turn doesn't get triggered
+view (turn, board, ai) (w,h) = E.beside (E.flow E.down (map (\a -> E.flow E.right <| map (toButton ((min h w)//8) ((min h w)//8) (turn, board, ai)) a) board)) (description h (turn, board, ai))
 
 
 
 stateOverTime : Signal State
 stateOverTime = Signal.foldp upstate initState
-                        (Signal.merge (Signal.map Loc buttonMailbox.signal) (Signal.map Check <| Time.every (3 * Time.second)))
+                        (Signal.merge
+                            (Signal.merge (Signal.map Loc buttonMailbox.signal) (Signal.map Check <| Time.every (3 * Time.second)))
+                            (Signal.map (\a -> AI) aiMailbox.signal))
 
 main = Signal.map2 view stateOverTime Window.dimensions
+
+
+
+
+
+
+
+
+
+
+
+
+
+
