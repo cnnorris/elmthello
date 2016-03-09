@@ -45,6 +45,15 @@ cornerSetUpCoords = [(1,1),(1,6),(6,1),(6,6)]
 edgeSetUpCoords : List (Int, Int)
 edgeSetUpCoords = [(1,2),(1,3),(1,4),(1,5),(6,2),(6,3),(6,4),(6,5),(2,1),(3,1),(4,1),(5,1),(2,6),(3,6),(4,6),(5,6)]
 
+normalCoords : List (Int, Int)
+normalCoords = []
+
+numCorners = toFloat <| List.length cornerCoords
+numGoodEdges = toFloat <| List.length goodEdgeCoords
+numCornerSetUp = toFloat <| List.length cornerSetUpCoords
+numedgeSetUp = toFloat <| List.length edgeSetUpCoords
+numNormal = 64.0-numCorners-numGoodEdges-numCornerSetUp-numedgeSetUp
+
 -- create tree of simulated moves
 -- ( a move is a pair of Ints representing coordinates)
 -- p is 1 or 2 to represent player number
@@ -164,16 +173,16 @@ scoreBoard : Board -> Int
 scoreBoard b = 
   let
     win = verifyWinner b
-    cornerCountDiff = (countTiles npc b cornerCoords) - (countTiles human b cornerCoords)
-    cornerSetUpCountDiff = (countTiles npc b cornerSetUpCoords) - (countTiles human b cornerSetUpCoords)
-    goodEdgeCountDiff = (countTiles npc b goodEdgeCoords) - (countTiles human b goodEdgeCoords)
-    edgeSetUpCountDiff = (countTiles npc b edgeSetUpCoords) - (countTiles human b edgeSetUpCoords)
-    advantage = (countBoardTiles npc b) - (countBoardTiles human b)
+    cornerCountDiff = (toFloat ((countTiles npc b cornerCoords) - (countTiles human b cornerCoords)))
+    cornerSetUpCountDiff = (toFloat ((countTiles npc b cornerSetUpCoords) - (countTiles human b cornerSetUpCoords)))
+    goodEdgeCountDiff = (toFloat ((countTiles npc b goodEdgeCoords) - (countTiles human b goodEdgeCoords)))
+    edgeSetUpCountDiff = (toFloat ((countTiles npc b edgeSetUpCoords) - (countTiles human b edgeSetUpCoords)))
+    advantage = (toFloat ((countBoardTiles npc b) - (countBoardTiles human b)))
   in
   case win of
     Just (winner, _) -> if winner == npc then 1000 else if winner == human then -1000 else 0
     Nothing -> let otherDiff = (advantage-cornerCountDiff-cornerSetUpCountDiff-goodEdgeCountDiff-edgeSetUpCountDiff) in 
-      cornerBias*cornerCountDiff+cornerSetUpBias*cornerSetUpCountDiff+goodEdgeCountDiff*goodEdgeBias+edgeSetUpCountDiff*edgeSetUpBias+normalBias*otherDiff
+      round <| cornerBias*cornerCountDiff/numCorners+cornerSetUpBias*cornerSetUpCountDiff/numCornerSetUp+goodEdgeCountDiff*goodEdgeBias/numGoodEdges+edgeSetUpCountDiff*edgeSetUpBias/numedgeSetUp+normalBias*otherDiff/numNormal
 
 
 -- Is there a winner? Just (playerNum, magnitude of advantage)
