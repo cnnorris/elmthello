@@ -5,6 +5,7 @@ import Board exposing (boardSize, Tile, Row, Board, legalMoves, initBoard, execu
 type MovesTree = Node (Int, Int) (List MovesTree)
 
 getMoveFromTile (Board.T a (x,y)) = (x,y)
+
 npc = 2
 human = 1
 depth = 5
@@ -54,6 +55,7 @@ numCornerSetUp = toFloat <| List.length cornerSetUpCoords
 numedgeSetUp = toFloat <| List.length edgeSetUpCoords
 numNormal = 64.0-numCorners-numGoodEdges-numCornerSetUp-numedgeSetUp
 
+atRoot (a,b) = if ((a == -1) && (b == -1)) then True else False 
 -- create tree of simulated moves
 -- ( a move is a pair of Ints representing coordinates)
 -- p is 1 or 2 to represent player number
@@ -61,23 +63,19 @@ numNormal = 64.0-numCorners-numGoodEdges-numCornerSetUp-numedgeSetUp
 simMoveTrees : Int -> Int -> Board -> (Int, Int) -> MovesTree
 simMoveTrees p h board move = 
     let
-      board' = case move of 
         -- (-1, -1) means we're at the root of the tree
-        (-1, -1) -> board
-        _ -> executeMove move p board 
-      opponent = case move of 
-        (-1, -1) -> p
-        _ -> case p of 
-          1 -> 2
-          _ -> 1
+      board' = if (atRoot move) then board
+      else executeMove move p board
+      opponent = if (atRoot move) then p
+        else if p == 1 then 2 
+        else 1
     in
-    case h of 
-      0 -> Node move []
-      _ -> 
-          case (legalMoves opponent board') of
-            [] -> Node move []
-            nextMoves -> 
-              Node move (List.map (\x -> simMoveTrees opponent (h-1) board' x) (prune nextMoves board' p))
+    if h == 0 then Node move []
+    else
+      case (legalMoves opponent board') of
+        [] -> Node move []
+        nextMoves -> 
+          Node move (List.map (\x -> simMoveTrees opponent (h-1) board' x) (prune nextMoves board' p))
 
 type SpecialBool = Corner | B Bool
 
@@ -162,9 +160,9 @@ getBestMove mt p b =
   case mt of
     -- at the leaf, we will have a different scoring algorithm; for now return 0
     Node move [] -> (scoreBoard b, move)
-    Node move mts -> case move of 
-      (-1, -1) -> (score p (List.map (\t -> getBestMove t otherP b) mts) b move)
-      _ -> ((fst (score p (List.map (\t -> getBestMove t otherP b) mts) b move)), move)
+    Node move mts -> if (atRoot move) 
+      then (score p (List.map (\t -> getBestMove t otherP b) mts) b move)
+      else ((fst (score p (List.map (\t -> getBestMove t otherP b) mts) b move)), move)
 
 -- function to score a board (at the leaves of the MoveTree)
 -- we calculate advantage by weighting the value of the tiles that we have vs the tiles 
