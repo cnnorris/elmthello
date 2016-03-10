@@ -84,24 +84,24 @@ aiMailbox = mailbox True
 toButton : Int -> Int -> State-> Tile ->  E.Element
 toButton x y (t,b, ai) (T a loc)  = case a of
                             1 -> customButton (Signal.message buttonMailbox.address loc)
-                                  (image x y "/player1.jpg")
-                                  (image x y "/player1.jpg")
-                                  (image x y "/player1.jpg")
+                                  (image x y "./img/player1.jpg")
+                                  (image x y "./img/player1.jpg")
+                                  (image x y "./img/player1.jpg")
                             2 -> customButton (Signal.message buttonMailbox.address loc)
-                                  (image x y "/player2.jpg")
-                                  (image x y "/player2.jpg")
-                                  (image x y "/player2.jpg")
+                                  (image x y "./img/player2.jpg")
+                                  (image x y "./img/player2.jpg")
+                                  (image x y "./img/player2.jpg")
 
                             _ -> if member loc (legalMoves t b) && (t == 1  || not ai) then
                                     customButton (Signal.message buttonMailbox.address loc)
-                                    (image x y "/default.jpg")
-                                    (image x y "/mouseover.jpg")
-                                    (image x y "/click.jpg")
+                                    (image x y "./img/default.jpg")
+                                    (image x y "./img/mouseover.jpg")
+                                    (image x y "./img/click.jpg")
                                  else
                                     customButton (Signal.message buttonMailbox.address loc)
-                                    (image x y "/defaultnone.jpg")
-                                    (image x y "/defaultnone.jpg")
-                                    (image x y "/defaultnone.jpg")
+                                    (image x y "./img/defaultnone.jpg")
+                                    (image x y "./img/defaultnone.jpg")
+                                    (image x y "./img/defaultnone.jpg")
 
 
 -- Side panel, gives score, turn/endgame, AI status
@@ -134,17 +134,17 @@ describeState :  State -> Int -> E.Element
 describeState (turn, _ , ai) h =  E.flow E.right
                                             [ E.spacer 10 100,
                                              case turn of
-                                                1 -> (image 180 120 "/redTurn.jpg")
+                                                1 -> (image 180 120 "./img/redTurn.jpg")
 
                                                 2 -> if ai then
-                                                        image 180 120 "/aiTurn.jpg"
+                                                        image 180 120 "./img/aiTurn.jpg"
                                                      else
-                                                        image 180 120 "/blueTurn.jpg"
+                                                        image 180 120 "./img/blueTurn.jpg"
 
                                                 _ -> customButton (Signal.message buttonMailbox.address (-1,-1))
-                                                    (image 180 120 "/doneDefault.jpg")
-                                                    (image 180 120 "/doneOver.jpg")
-                                                    (image 180 120 "/doneClick.jpg")]
+                                                    (image 180 120 "./img/doneDefault.jpg")
+                                                    (image 180 120 "./img/doneOver.jpg")
+                                                    (image 180 120 "./img/doneClick.jpg")]
 
 
 -- Draws board and description panel
