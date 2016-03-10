@@ -17,17 +17,15 @@ import Signal exposing (Mailbox, mailbox)
 
 import List exposing (drop, take, foldr, map, head, length, filter)
 
-
+-- This could increase I guess
 boardSize = 8
 
-type Tile = T Int (Int, Int)  -- Player/color, (row,col) 
-
+type Tile = T Int (Int, Int)  -- Player/color, (row,col)
 type alias Row   = List Tile
 type alias Board = List Row
 
 
-
-
+-- Used to set a particular tile to a particular player
 setBoard : (Int,Int) -> Int -> Board -> Board
 setBoard (x,y) player board = let r = head_ <| drop x board in
         (take x board) ++  
@@ -35,7 +33,7 @@ setBoard (x,y) player board = let r = head_ <| drop x board in
              :: (drop (x+1) board))
 
 
-
+-- Removes type wrapper around coordinates
 unTile : List (List Tile) -> List (List Int)
 unTile b = let f = (\(T x _) ->  x) in
                 map (map f) b
@@ -55,11 +53,13 @@ initBoard = makeBoard boardSize |> setBoard (3,3) 1 |> setBoard (4,4) 1 |>
                     setBoard (4,3) 2 |> setBoard (3,4) 2
 
 
+-- Flips tile at given location
 flipLocation (x,y) board = let r = head_ <| drop x board in
         (take x board) ++  
             (((take y r) ++ [( flipTile <| spaceAt (x,y) board) ] ++ (drop (y+1) r))
              :: (drop (x+1) board))
 
+-- Reassigns player value of tile
 flipTile : Tile -> Tile
 flipTile (T c (x,y)) = case c of
                         0 -> Debug.crash "Invalid flip"
@@ -71,11 +71,12 @@ flipTile (T c (x,y)) = case c of
 
 
 -- legalMoves takes a Bool player identifier and a board, returns legal moves by that player
+-- A move is legal if there are opposite colored tiles between it and a similarly colord tile
+-- in cardinal or semicardinal directions
 legalMoves : Int -> Board -> List (Int, Int)
 legalMoves player board = map (\(T _ a) -> a) <| foldr (++) [] <| map (\a -> legalMovesForRow player a board) board
 
 legalMovesForRow player row board = filter (\a -> legalMoveForSpace a player board) row
-
 legalMoveForSpace (T p loc) player board =
             if p /= 0 then False else
             if map (\a -> (checkDirection a player (a loc) board)) movements |>
@@ -85,6 +86,7 @@ legalMoveForSpace (T p loc) player board =
                 False
              
 
+-- These are all the cardinal/semicardinal directions, used to navigate board
 movements =    [(\(a,b) -> (a+1,b)),
                 (\(a,b) -> (a-1,b)),
                 (\(a,b) -> (a+1,b+1)),
@@ -113,7 +115,8 @@ checkDirection move player (x,y) board =
             else
                 0
                    
-
+-- Flips all tiles in a given direction from chosen tile until similarly-colord tile
+-- is found
 flipDirection : ((Int,Int) -> (Int,Int)) -> Int -> (Int, Int) -> Board -> (Int , Board)
 flipDirection move player (x,y) board =
            if x < boardSize  && y < boardSize  &&
@@ -133,11 +136,11 @@ flipDirection move player (x,y) board =
                 (0, board)
 
 
-
+-- Sets piece on board, then goes and flips from there
 executeMove (x,y) player board = setBoard (x,y) player <| snd <| foldr (\a (b,c) -> flipDirection a player (a (x,y)) c) (0, board) movements
 
 
-
+-- Un-maybe'd version of head
 head_ : List a -> a
 head_ a = case (head a) of
             Nothing -> Debug.crash "Head_"

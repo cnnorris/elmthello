@@ -15,16 +15,23 @@ import MiniMax exposing (..)
 
 type alias State = (Int, Board, Bool) -- Int is player # whose turn it is, Bool is whether or not AI is on
 
+-- Signal from buttons, Loc is a piece, Check is a timer reminder, AI is the AI toggle
 type Sig = Loc (Int,Int) | Check Float | AI
 
 initState = (1, initBoard, False)
 aiMove = getAiMove
 
+-- Generalized function to change turns
 flipTurn a = case a of
                     1 -> 2
                     2 -> 1
                     _ -> Debug.crash "No turn"
 
+-- Upstate: Takes in signals and reacts to them
+-- Loc (-1,-1) is the signal sent by the "new game" button
+-- AI is the signal sent by the AI toggle
+-- Loc (x,y) is the signal sent by board buttons
+-- Handles turn changes and whether or not the AI is running
 upstate : Sig -> State -> State    -- Takes a clicked square and a state, updates if legal
 upstate s (turn, board, ai) =  if s == Loc (-1,-1) then initState
                                else if s == AI then (turn, board, not ai)
@@ -40,6 +47,8 @@ upstate s (turn, board, ai) =  if s == Loc (-1,-1) then initState
                                         1 -> evaluateMove s (turn, board, ai)
                                         _ -> Debug.crash "Invalid turn"
 
+-- Evaluate move alters the board state after the human player has chosen their move
+-- Generalized to work regardless of p1 or p2
 evaluateMove : Sig -> State -> State
 evaluateMove s (turn, board, ai) =
     case s of
@@ -50,6 +59,8 @@ evaluateMove s (turn, board, ai) =
                 (turn,board, ai)
         _    -> (turn,board, ai)
 
+
+-- checkState tests for endgame, and whether or not the player whose turn it is has possible moves
 checkState : State -> State
 checkState (turn, board, ai) = case turn of
                              3 -> (turn, board, ai)
@@ -61,13 +72,15 @@ checkState (turn, board, ai) = case turn of
                                         (3, board, ai)
 
 
-
+-- Mailbox for board buttons, new game
 buttonMailbox : Mailbox (Int,Int)
 buttonMailbox = mailbox (0,0)
 
+-- Mailbox for AI toggle
 aiMailbox : Mailbox Bool
 aiMailbox = mailbox True
 
+-- Draw a button given a tile
 toButton : Int -> Int -> State-> Tile ->  E.Element
 toButton x y (t,b, ai) (T a loc)  = case a of
                             1 -> customButton (Signal.message buttonMailbox.address loc)
@@ -91,7 +104,7 @@ toButton x y (t,b, ai) (T a loc)  = case a of
                                     (image x y "/defaultnone.jpg")
 
 
-
+-- Side panel, gives score, turn/endgame, AI status
 description  : Int -> State -> E.Element
 description h (turn, board, ai) = E.flow E.down
                 [(E.container 200 (h//8) E.middle
@@ -116,7 +129,7 @@ description h (turn, board, ai) = E.flow E.down
 
 
 
-
+-- Picks the correct image to put in the description panel
 describeState :  State -> Int -> E.Element
 describeState (turn, _ , ai) h =  E.flow E.right
                                             [ E.spacer 10 100,
@@ -134,11 +147,18 @@ describeState (turn, _ , ai) h =  E.flow E.right
                                                     (image 180 120 "/doneClick.jpg")]
 
 
+-- Draws board and description panel
 view :  State -> (Int, Int) -> E.Element
-view (turn, board, ai) (w,h) = E.beside (E.flow E.down (map (\a -> E.flow E.right <| map (toButton ((min h w)//8) ((min h w)//8) (turn, board, ai)) a) board)) (description h (turn, board, ai))
+view (turn, board, ai) (w,h) = E.beside (E.flow E.down (map (\a -> E.flow E.right <|
+                                                map (toButton ((min h w)//8) ((min h w)//8) (turn, board, ai)) a) board))
+                                        (description h (turn, board, ai))
 
 
-
+-- Starts and handles signal stream
+-- Signals get thrown:
+--     whenever player clicks
+--     whenever AI is toggled
+--     every 3 seconds, to re-wake up AI if it has to move twice in a row
 stateOverTime : Signal State
 stateOverTime = Signal.foldp upstate initState
                         (Signal.merge
