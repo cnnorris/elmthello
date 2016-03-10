@@ -16,17 +16,24 @@ edgeSetUpBias = -50
 cornerSetUpBias = -100
 normalBias = 5
 
+-- return whether or not this move is at the root of the tree (indicated by (-1,-1))
+atRoot (a,b) = if ((a == -1) && (b == -1)) then True else False 
+
+-- function for Main.elm to get AI's move
 getAiMove : Int -> Board -> Maybe (Int,Int)
 getAiMove t b = 
   let
     simTree = simMoveTrees npc depth b (-1, -1)
     bestMove = getBestMove simTree npc b
   in
-    Just (snd bestMove)
+    if atRoot (snd bestMove) 
+      then Nothing
+      else Just (snd bestMove)
 
 coordsToTiles : List (Int ,Int) -> Board -> List Tile 
 coordsToTiles coords b = List.map (\x -> spaceAt x b) coords
 
+getPlayer : Tile -> Int
 getPlayer (Board.T a (x,y)) = a
 
 countTiles : Int -> Board -> List (Int, Int) -> Int
@@ -55,11 +62,10 @@ numCornerSetUp = toFloat <| List.length cornerSetUpCoords
 numedgeSetUp = toFloat <| List.length edgeSetUpCoords
 numNormal = 64.0-numCorners-numGoodEdges-numCornerSetUp-numedgeSetUp
 
-atRoot (a,b) = if ((a == -1) && (b == -1)) then True else False 
 -- create tree of simulated moves
 -- ( a move is a pair of Ints representing coordinates)
 -- p is 1 or 2 to represent player number
--- second int is height of tree
+-- h is height of tree
 simMoveTrees : Int -> Int -> Board -> (Int, Int) -> MovesTree
 simMoveTrees p h board move = 
     let
@@ -81,9 +87,6 @@ type SpecialBool = Corner | B Bool
 
 -- an edge tile placement is stable if, after placement, it is not
 -- immediately possible for the opponent to reverse it.
--- (it is not bordered on either side by another color)
--- (although I should fix this to being bordered by at most 1 side?)
--- (because it is fine to be bordered on both sides by the other color, still stable)
 
 isStable : (Int, Int) -> Int -> Board -> Bool
 isStable (x,y) currPlayer b =
@@ -118,9 +121,8 @@ isStable (x,y) currPlayer b =
       (B t, B s) -> (t && s) ||((not t) && (not s))
     
 
-excludedCoords = [(1,1),(1,6),(6,1),(6,6)]
--- add pruning - definitely take corners if possible;
--- second priority is to stable edge placements.
+-- pruning - definitely take corners if possible;
+-- second priority is stable edge placements.
 prune : List (Int, Int) -> Board -> Int -> List (Int, Int)
 prune possMoves b p =
   let
@@ -138,7 +140,7 @@ prune possMoves b p =
     -- I don't use the cornerSetUpPrune as of nsow
     excludePrune pm = case pm of 
       [] -> []
-      x :: xs -> if (List.member x excludedCoords) then (excludePrune xs) else x::(excludePrune xs)
+      x :: xs -> if (List.member x cornerSetUpCoords) then (excludePrune xs) else x::(excludePrune xs)
   in
     if List.length (cornerPrune possMoves) == 1 then (cornerPrune possMoves)
     else 
@@ -150,8 +152,8 @@ prune possMoves b p =
       else possMoves
 
 
--- traverse tree of simulated moves to find best move
--- sim tree, player num, current board
+-- traverse tree of simulated moves to find best move, according to MiniMax
+-- given sim tree, player num, current board
 getBestMove : MovesTree -> Int -> Board -> (Int, (Int, Int))
 getBestMove mt p b = 
   let
@@ -166,16 +168,16 @@ getBestMove mt p b =
 
 -- function to score a board (at the leaves of the MoveTree)
 -- we calculate advantage by weighting the value of the tiles that we have vs the tiles 
--- our opponent has. 
+-- our opponent has, and by the weight of how much we value those types of tiles 
 scoreBoard : Board -> Int
 scoreBoard b = 
   let
     win = verifyWinner b
-    cornerCountDiff = (toFloat ((countTiles npc b cornerCoords) - (countTiles human b cornerCoords)))
-    cornerSetUpCountDiff = (toFloat ((countTiles npc b cornerSetUpCoords) - (countTiles human b cornerSetUpCoords)))
-    goodEdgeCountDiff = (toFloat ((countTiles npc b goodEdgeCoords) - (countTiles human b goodEdgeCoords)))
-    edgeSetUpCountDiff = (toFloat ((countTiles npc b edgeSetUpCoords) - (countTiles human b edgeSetUpCoords)))
-    advantage = (toFloat ((countBoardTiles npc b) - (countBoardTiles human b)))
+    cornerCountDiff = toFloat <| (countTiles npc b cornerCoords) - (countTiles human b cornerCoords)
+    cornerSetUpCountDiff = toFloat <| (countTiles npc b cornerSetUpCoords) - (countTiles human b cornerSetUpCoords)
+    goodEdgeCountDiff = toFloat <| (countTiles npc b goodEdgeCoords) - (countTiles human b goodEdgeCoords)
+    edgeSetUpCountDiff = toFloat <| (countTiles npc b edgeSetUpCoords) - (countTiles human b edgeSetUpCoords)
+    advantage = toFloat <| (countBoardTiles npc b) - (countBoardTiles human b)
   in
   case win of
     Just (winner, _) -> if winner == npc then 1000 else if winner == human then -1000 else 0
@@ -193,12 +195,10 @@ verifyWinner b =
   lm_human = legalMoves human b
   diff = (countBoardTiles npc b) - (countBoardTiles human b)
   in
-    case lm_npc of 
-      [] -> case lm_human of
-        [] -> if diff == 0 then Just (0, 0)
-              else if diff > 0 then Just (npc, diff)
-              else Just (human, (-1*diff))
-        _ -> Nothing
+    case (lm_npc,lm_human) of 
+      ([],[]) -> if diff == 0 then Just (0, 0)
+                  else if diff > 0 then Just (npc, diff)
+                  else Just (human, (-1*diff))
       _ -> Nothing
 
 countBoardTiles : Int -> Board -> Int
@@ -207,10 +207,8 @@ countBoardTiles p b =
     (List.map (\row -> List.length (List.filter (\(Board.T a (x,y)) -> if a == p then True else False) row)) b)
 
 -- function to score a move
---      have some heuristics 
---      use heuristics to define value of leaf nodes?
 -- score : player num, children, board, move
--- added biases
+
 score : Int -> List (Int, (Int,Int)) -> Board -> (Int, Int) -> (Int,(Int, Int))
 score p children b move = 
   let
