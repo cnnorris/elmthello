@@ -1,0 +1,23 @@
+Clayton Norris
+
+Report for elmthello : Graphics and Game logic
+
+Overall this was a pretty fun project to work on. Elm makes graphics and UI somehow intuitive in a functional framework, which made the interface really straightforward to create. The fact that everything is just an "element" really simplifies things. For instance, the main UI is divided at the topmost level into two parts:
+
+----------------
+|          |   |
+|          |   |
+|    1     | 2 |
+|          |   |
+|          |   |        
+----------------
+
+The left part (1) is the board and the right part (2) is the description panel, which gives score, turn, and AI information. dividing the interface in two let me work on one when the other wasn't 100% without any loss of functionality. 
+
+The input system relies on two mailboxes. The first is the buttonMailbox, which is what receives signals for all of the tiles on the board. The second is the aiMailbox, which keeps track of the state of the AI on/off toggle box. The aiMailbox just receives booleans, while the buttonMailbox receives (x,y) coordinates of the tile that was clicked. Both of these signals are grouped with the time signal (explained in the next paragraph) to simply be a Sig type. The "Play again" button also triggers a signal of (-1,-1) to buttonMailbox. Since this is the only thing that can send this signal, this case is handled separately.
+
+
+My original implementation involved reading in the buttonMailbox signal, then waiting a second and throwing another signal. This was to trigger the AI to move after the human, as they each required a call to upstate to go through. This was a perfectly acceptable strategy until the AI started getting smarter. The problem was, if the human player has no legal moves, then the AI gets to move twice in a row, or thrice, etc. This means that there were pending turns that weren't getting sent to upstate because only one AI move would be triggered per human move. If the AI stalled like this, you could simply click and it would start again, because that would cause another call to upstate. To remedy this problem, there is now a timer going that triggers the buttonMailbox as if somebody had clicked one of the middle four squares (chosen because these spaces always have tiles on them, thus never being a legal tile placement). Basically, instead of the human having to click to re-wake the AI, the timer does it for you. While this is probably not the most elegant solution, it works. 
+
+I had difficulty optimizing algorithms on the board matrix, due to the list-of-lists implementation and the lack of direct access functions, so there was a lot of taking and dropping. Luckily since the board is so small, it doesn't slow down the program to a noticeable degree. I basically ended up writing a direct-access API and then using imperative-esque logic. While this is certainly not the most efficient, it made the most sense when it came to things like moving up or down on the board, and improved code clarity. The difficulty encountered here was surprising, because functional languages are so list-friendly. I guess they aren't terribly matrix-friendly in some cases. 
+
